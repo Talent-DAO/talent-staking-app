@@ -2,6 +2,7 @@ import { signOut, useSession } from "next-auth/react"
 import Link from "next/link"
 import { useDisconnect } from "wagmi"
 import styles from "./header.module.css"
+import Nav from "./nav"
 
 // The approach used in this component shows how to build a sign in and sign out
 // component that works on pages which support both client and server side
@@ -55,7 +56,8 @@ export default function Header() {
           )}
         </p>
       </div>
-      <nav>
+      <Nav />
+      {/* <nav>
         <ul className={styles.navItems}>
           <li className={styles.navItem}>
             <Link href="/">
@@ -68,7 +70,7 @@ export default function Header() {
             </Link>
           </li>
         </ul>
-      </nav>
+      </nav> */}
     </header>
   )
 }

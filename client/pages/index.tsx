@@ -1,22 +1,14 @@
 import Image from 'next/image'
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import styles from '../styles/Home.module.css'
+import Nav from '../components/nav';
+import Header from '../components/header';
 
 export default function Home() {
   return (
     <div className="container">
       <main className=" flex flex-col">
-        <nav className='flex justify-end'>
-          <ul className="inline-flex">
-            <li className="p-2">
-              <ConnectButton />
-            </li>
-            <li className="p-2">
-              <button className='bg-red-400 rounded-lg h-full p-2'>Help ?</button>
-            </li>
-          </ul>
-        </nav>
-        {/* <Header /> */}
+        <Header />
         <div className="text-3xl text-center">
           TalentDAO Staking
         </div>
