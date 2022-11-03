@@ -30,7 +30,7 @@ function Siwe() {
       })
       signIn("credentials", {
         message: JSON.stringify(message),
-        redirect: false,
+        redirect: true,
         signature,
         callbackUrl,
       })
