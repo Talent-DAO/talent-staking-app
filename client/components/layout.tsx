@@ -1,8 +1,8 @@
-import Nav from './nav';
 import Footer from './footer';
+import Nav from './nav';
 
 interface LayoutProps {
-  children: React.ReactNode;
+  children: any;
 }
 
 export default function Layout({ children }: LayoutProps) {
