@@ -1,4 +1,4 @@
-pragma solidity ^0.0.15;
+pragma solidity ^0.8.15;
 //SPDX-License-Identifier: GPL
 
 import "hardhat/console.sol"; // Remove after testing is completed - JR
@@ -19,5 +19,5 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 /// @author jaxcoder
 /// @notice handles proposals
 contract GovernorBeta is Ownable {
-    constructor () {}
+    constructor (address _owner) {}
 }
