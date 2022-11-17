@@ -44,5 +44,8 @@
     "account": "hardhat account",
     "verify": "hardhat etherscan-verify --api-key PSW8C433Q667DVEX5BCRMGNAH9FSGFZ7Q8",
     "fork:goerli": "hardhat node --network hardhat"
+  },
+  "resolutions": {
+    "hardhat/**/@ethereumjs/tx": "3.5.0"
   }
 }

@@ -28,95 +28,87 @@ module.exports = async ({ getNamedAccounts, deployments, getChainId }) => {
     args: ["0x3f15B8c6F9939879Cb030D6dd935348E57109637"],
     log: true,
   });
-
-  await deploy("TalentDaoNftToken", {
+  
+  const stakingContract = await deploy("TalentStaking", {
     from: deployer,
     args: [
-      "0x3f15B8c6F9939879Cb030D6dd935348E57109637",
+      1,
+      100000,
       talentDaoTokenContract.address,
+      veTalentDaoTokenContract.address,
     ],
     log: true,
   });
 
-  await deploy("ArticleNft", {
-    from: deployer,
-    args: [
-      "0x3f15B8c6F9939879Cb030D6dd935348E57109637",
-      talentDaoTokenContract.address,
-    ],
-    log: true,
-  });
+  console.log("OUTPUT", { talentDaoTokenContract, veTalentDaoTokenContract, stakingContract });
 
-  // Getting a previously deployed contract
-  const TalentDAOTokenContract = await ethers.getContract(
-    "TalentDaoToken",
-    deployer
-  );
+  // await deploy("TalentDaoNftToken", {
+  //   from: deployer,
+  //   args: [
+  //     "0x3f15B8c6F9939879Cb030D6dd935348E57109637",
+  //     talentDaoTokenContract.address,
+  //   ],
+  //   log: true,
+  // });
 
-  // const TalentDAONFTTokenContract = await ethers.getContract(
-  //   "TalentDaoNftToken",
-  //   deployer
-  // );
+  // await deploy("ArticleNft", {
+  //   from: deployer,
+  //   args: [
+  //     "0x3f15B8c6F9939879Cb030D6dd935348E57109637",
+  //     talentDaoTokenContract.address,
+  //   ],
+  //   log: true,
+  // });
 
-  const TalentDaoArticleNFTTokenContract = await ethers.getContract(
-    "ArticleNft",
-    deployer
-  );
-
-  await deploy("TalentDaoManager", {
-    from: deployer,
-    args: [
-      "0x3f15B8c6F9939879Cb030D6dd935348E57109637", // contract manager
-      "0x3f15B8c6F9939879Cb030D6dd935348E57109637", // contract owner
-      TalentDAOTokenContract.address, // TDAO token address
-      TalentDaoArticleNFTTokenContract.address, // TDAO NFT token address
-    ],
-    log: true,
-    waitConfirmations: 5,
-  });
-
-  const TalentDaoManagerContract = await ethers.getContract(
-    "TalentDaoManager",
-    deployer
-  );
+  // await deploy("TalentDaoManager", {
+  //   from: deployer,
+  //   args: [
+  //     "0x3f15B8c6F9939879Cb030D6dd935348E57109637", // contract manager
+  //     "0x3f15B8c6F9939879Cb030D6dd935348E57109637", // contract owner
+  //     TalentDAOTokenContract.address, // TDAO token address
+  //     TalentDaoArticleNFTTokenContract.address, // TDAO NFT token address
+  //   ],
+  //   log: true,
+  //   waitConfirmations: 5,
+  // });
 
   // Verify from the command line by running `yarn verify`
 
   // You can also Verify your contracts with Etherscan here...
   // You don't want to verify on localhost
-  try {
-    if (chainId !== localChainId) {
-      await run("verify:verify", {
-        address: TalentDAOTokenContract.address,
-        contract: "contracts/TalentDaoToken.sol:TalentDaoToken",
-        constructorArguments: ["0x3f15B8c6F9939879Cb030D6dd935348E57109637"],
-      });
-      await run("verify:verify", {
-        address: veTalentDaoTokenContract.address,
-        contract: "contracts/veTalentDaoToken.sol:veTalentDaoToken",
-        constructorArguments: ["0x3f15B8c6F9939879Cb030D6dd935348E57109637"],
-      });
-      await run("verify:verify", {
-        address: TalentDaoArticleNFTTokenContract.address,
-        contract: "contracts/ArticleNft.sol:ArticleNft",
-        constructorArguments: [
-          "0x3f15B8c6F9939879Cb030D6dd935348E57109637",
-          talentDaoTokenContract.address,
-        ],
-      });
-      await run("verify:verify", {
-        address: TalentDaoManagerContract.address,
-        contract: "contracts/TalentDaoManager.sol:TalentDaoManager",
-        constructorArguments: [
-          "0x3f15B8c6F9939879Cb030D6dd935348E57109637", // contract manager
-          "0x3f15B8c6F9939879Cb030D6dd935348E57109637", // contract owner
-          TalentDAOTokenContract.address, // TDAO token address
-          TalentDaoArticleNFTTokenContract.address, // TDAO IP NFT token address
-        ],
-      });
-    }
-  } catch (error) {
-    console.error(error);
-  }
+  // try {
+  //   if (chainId !== localChainId) {
+  //     await run("verify:verify", {
+  //       address: TalentDAOTokenContract.address,
+  //       contract: "contracts/TalentDaoToken.sol:TalentDaoToken",
+  //       constructorArguments: ["0x3f15B8c6F9939879Cb030D6dd935348E57109637"],
+  //     });
+  //     await run("verify:verify", {
+  //       address: veTalentDaoTokenContract.address,
+  //       contract: "contracts/veTalentDaoToken.sol:veTalentDaoToken",
+  //       constructorArguments: ["0x3f15B8c6F9939879Cb030D6dd935348E57109637"],
+  //     });
+  //     await run("verify:verify", {
+  //       address: TalentDaoArticleNFTTokenContract.address,
+  //       contract: "contracts/ArticleNft.sol:ArticleNft",
+  //       constructorArguments: [
+  //         "0x3f15B8c6F9939879Cb030D6dd935348E57109637",
+  //         talentDaoTokenContract.address,
+  //       ],
+  //     });
+  //     await run("verify:verify", {
+  //       address: TalentDaoManagerContract.address,
+  //       contract: "contracts/TalentDaoManager.sol:TalentDaoManager",
+  //       constructorArguments: [
+  //         "0x3f15B8c6F9939879Cb030D6dd935348E57109637", // contract manager
+  //         "0x3f15B8c6F9939879Cb030D6dd935348E57109637", // contract owner
+  //         TalentDAOTokenContract.address, // TDAO token address
+  //         TalentDaoArticleNFTTokenContract.address, // TDAO IP NFT token address
+  //       ],
+  //     });
+  //   }
+  // } catch (error) {
+  //   console.error(error);
+  // }
 };
-module.exports.tags = ["TalentDaoToken", "veTalentToken", "TalentDaoManager"];
+module.exports.tags = ["TalentDaoToken", "veTalentToken", "TalentStaking"];

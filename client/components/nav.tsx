@@ -19,7 +19,7 @@ export default function Nav() {
           </Link>
         </li>
         <li className="p-2">
-          <button className='bg-red-400 rounded-lg h-full p-2'>Help ?</button>
+          <button className='bg-red-500 rounded-lg h-full p-2'>Help ?</button>
         </li>
       </ul>
     </nav>
