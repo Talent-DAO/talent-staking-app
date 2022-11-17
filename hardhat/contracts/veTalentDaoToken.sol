@@ -1,4 +1,4 @@
-pragma solidity ^0.8.4;
+pragma solidity ^0.8.15;
 pragma experimental ABIEncoderV2;
 //SPDX-License-Identifier: GPL
 
@@ -25,26 +25,43 @@ contract veTalentToken is ERC20, Ownable, AccessControl, ERC20Burnable {
     mapping(address => mapping(uint32 => Checkpoint)) public checkpoints;
 
     /// @notice The number of checkpoints for each account
-    mapping (address => uint32) public numCheckpoints;
+    mapping(address => uint32) public numCheckpoints;
 
     /// @notice A record of states for signing / validating signatures
-    mapping (address => uint) private _nonces;
+    mapping(address => uint) private _nonces;
 
     /// @notice The EIP-712 typehash for the contract's domain
-    bytes32 public constant DOMAIN_TYPEHASH = keccak256("EIP712Domain(string name, uint256 chainId, address verifyingContract)");
+    bytes32 public constant DOMAIN_TYPEHASH =
+        keccak256(
+            "EIP712Domain(string name, uint256 chainId, address verifyingContract)"
+        );
 
     /// @notice The EIP-712 typehash for the delegation struct used by the contract
-    bytes32 public constant DELEGATION_TYPEHASH = keccak256("Delegation(address delegatee, uint256 nonce, uint256 expiry)");
+    bytes32 public constant DELEGATION_TYPEHASH =
+        keccak256(
+            "Delegation(address delegatee, uint256 nonce, uint256 expiry)"
+        );
 
     /// @notice The EIP-712 typehash for the permit struct used by the contract
-    bytes32 public constant PERMIT_TYPEHASH = keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
+    bytes32 public constant PERMIT_TYPEHASH =
+        keccak256(
+            "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
+        );
 
     // Events
     /// @notice An event thats emitted when an account changes its delegate
-    event DelegateChanged(address indexed delegator, address indexed fromDelegate, address indexed toDelegate);
+    event DelegateChanged(
+        address indexed delegator,
+        address indexed fromDelegate,
+        address indexed toDelegate
+    );
 
     /// @notice An event thats emitted when a delegate account's vote balance changes
-    event DelegateVotesChanged(address indexed delegate, uint256 previousBalance, uint256 newBalance);
+    event DelegateVotesChanged(
+        address indexed delegate,
+        uint256 previousBalance,
+        uint256 newBalance
+    );
 
     /// @notice An event thats emitted when a snapshot has been done
     event SnapshotDone(address owner, uint128 oldValue, uint128 newValue);
@@ -66,39 +83,41 @@ contract veTalentToken is ERC20, Ownable, AccessControl, ERC20Burnable {
 
     // Modifiers
     modifier isPermittedMinter() {
-        if(!hasRole(MINTER_ROLE, msg.sender) || owner() == msg.sender) revert WrongRole();
+        if (!hasRole(MINTER_ROLE, msg.sender) || owner() == msg.sender)
+            revert WrongRole();
         _;
     }
 
     modifier isPermittedDao() {
-        if(!hasRole(DAO_ROLE, msg.sender) || owner() == msg.sender) revert WrongRole();
+        if (!hasRole(DAO_ROLE, msg.sender) || owner() == msg.sender)
+            revert WrongRole();
         _;
     }
 
     modifier isPermittedOperator() {
-        if(!hasRole(OPERATOR_ROLE, msg.sender) || owner() == msg.sender) revert WrongRole();
+        if (!hasRole(OPERATOR_ROLE, msg.sender) || owner() == msg.sender)
+            revert WrongRole();
         _;
     }
 
     modifier isPermittedDistributor() {
-        if(!hasRole(DISTRIBUTOR_ROLE, msg.sender) || owner() == msg.sender) revert WrongRole();
+        if (!hasRole(DISTRIBUTOR_ROLE, msg.sender) || owner() == msg.sender)
+            revert WrongRole();
         _;
     }
 
     modifier isAdminOrOwner() {
-        if(!hasRole(DEFAULT_ADMIN_ROLE, msg.sender) || owner() == msg.sender) revert WrongRole();
+        if (!hasRole(DEFAULT_ADMIN_ROLE, msg.sender) || owner() == msg.sender)
+            revert WrongRole();
         _;
     }
 
     modifier hasEnoughBalance(uint256 balance, uint256 amount) {
-        if(balance >= amount) revert LowBalance();
+        if (balance >= amount) revert LowBalance();
         _;
     }
 
-    constructor
-    (
-        address _owner
-    )
+    constructor(address _owner)
         ERC20("veTalent Voting Token", "veTALENT")
         ERC20Burnable()
     {
@@ -111,7 +130,7 @@ contract veTalentToken is ERC20, Ownable, AccessControl, ERC20Burnable {
         transferOwnership(_owner);
     }
 
-    function setupNewAdminRole(address _newAdmin, address _oldAdmin)
+    function setupNewAdminRole(address _oldAdmin, address _newAdmin)
         public
         onlyOwner
     {
@@ -119,31 +138,31 @@ contract veTalentToken is ERC20, Ownable, AccessControl, ERC20Burnable {
         _setupRole(DEFAULT_ADMIN_ROLE, _newAdmin);
     }
 
-    function setupMinterRole(address newMinter)
-        public
-    {
-        if(!hasRole(DEFAULT_ADMIN_ROLE, _msgSender()) || owner() != _msgSender()) revert WrongRole();
+    function setupMinterRole(address newMinter) public {
+        if (
+            !hasRole(DEFAULT_ADMIN_ROLE, _msgSender()) ||
+            owner() != _msgSender()
+        ) revert WrongRole();
         _setupRole(MINTER_ROLE, newMinter);
     }
 
-    function setupOperatorRole(address _newOperator)
-        public
-    {
-        if(!hasRole(DEFAULT_ADMIN_ROLE, _msgSender()) || owner() != _msgSender()) revert WrongRole();
-        _setupRole(OPERATOR_ROLE, _newOperator);
+    function setupOperatorRole(address newOperator) public {
+        if (
+            !hasRole(DEFAULT_ADMIN_ROLE, _msgSender()) ||
+            owner() != _msgSender()
+        ) revert WrongRole();
+        _setupRole(OPERATOR_ROLE, newOperator);
     }
 
-    function setupDistributorRole(address _newDistributor)
-        public
-    {
-        if(hasRole(OPERATOR_ROLE, _msgSender()) || hasRole(DEFAULT_ADMIN_ROLE, _msgSender())) revert WrongRole();
+    function setupDistributorRole(address _newDistributor) public {
+        if (
+            hasRole(OPERATOR_ROLE, _msgSender()) ||
+            hasRole(DEFAULT_ADMIN_ROLE, _msgSender())
+        ) revert WrongRole();
         _setupRole(DISTRIBUTOR_ROLE, _newDistributor);
     }
 
-    function setupDaoRole(address _newDao)
-        public
-        onlyOwner
-    {
+    function setupDaoRole(address _newDao) public onlyOwner {
         _setupRole(DAO_ROLE, _newDao);
     }
 
@@ -151,42 +170,19 @@ contract veTalentToken is ERC20, Ownable, AccessControl, ERC20Burnable {
     /// @param _from the from address
     /// @param _to the to address
     /// @param _amount the amount
-    function _beforeTokenTransfer(address _from, address _to, uint256 _amount)
-        internal
-        virtual
-        override
-    {
+    function _beforeTokenTransfer(
+        address _from,
+        address _to,
+        uint256 _amount
+    ) internal virtual override {
         super._beforeTokenTransfer(_from, _to, _amount);
-
-        
     }
-
-    /// @notice Mint token function
-    /// @dev Mints to the sender
-    /// @param _amount The amount to mint
-    // function mintTokens
-    // (
-    //     uint256 _amount
-    // )
-    //     external
-
-    // {
-    //     if (msg.sender == address(0)) revert ZeroAddress();
-    //     _balances[msg.sender] += uint96(_amount);
-
-    //     _mint(msg.sender, _amount);
-    //     _moveDelegates(address(0), _delegates[msg.sender], _amount);
-    // }
 
     /// @notice Mint token function to address
     /// @dev This mints to a specified address
     /// @param _to The to address to mint to
     /// @param _amount The amount to mint
-    function mintTokensTo
-    (
-        address _to,
-        uint256 _amount
-    )
+    function mintTokensTo(address _to, uint256 _amount)
         external
         isPermittedMinter
     {
@@ -199,14 +195,7 @@ contract veTalentToken is ERC20, Ownable, AccessControl, ERC20Burnable {
 
     /// @notice Burn token from sender function
     /// @param _amount The amount to burn from sender
-    function burn
-    (
-        uint256 _amount
-    )
-        public
-        virtual
-        override
-    {
+    function burn(uint256 _amount) public virtual override {
         if (msg.sender == address(0)) revert ZeroAddress();
         _balances[msg.sender] -= uint96(_amount);
 
@@ -216,22 +205,14 @@ contract veTalentToken is ERC20, Ownable, AccessControl, ERC20Burnable {
     /// @notice Burns from a specified address
     /// @param _amount The amount to burn
     /// @param _from The from address to burn from
-    function burnFrom
-    (
-        address _from,
-        uint256 _amount
-    )
-        public
-        virtual
-        override
-    {
+    function burnFrom(address _from, uint256 _amount) public virtual override {
         if (_from == address(0)) revert ZeroAddress();
         _balances[_from] -= uint96(_amount);
 
         _burn(_from, _amount);
     }
 
-        /**
+    /**
      * @notice Triggers an approval from owner to spends
      * @param owner The address to approve from
      * @param spender The address to be approved
@@ -241,18 +222,41 @@ contract veTalentToken is ERC20, Ownable, AccessControl, ERC20Burnable {
      * @param r Half of the ECDSA signature pair
      * @param s Half of the ECDSA signature pair
      */
-    function permit(address owner, address spender, uint rawAmount, uint deadline, uint8 v, bytes32 r, bytes32 s)
-        public
-        virtual
-    {
-        if(block.timestamp >= deadline) revert PastDeadline();
+    function permit(
+        address owner,
+        address spender,
+        uint rawAmount,
+        uint deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) public virtual {
+        if (block.timestamp >= deadline) revert PastDeadline();
         uint256 nonce = _nonces[owner];
-        bytes32 domainSeparator = keccak256(abi.encode(DOMAIN_TYPEHASH, keccak256(bytes(name())), getChainId(), address(this)));
-        bytes32 structHash = keccak256(abi.encode(PERMIT_TYPEHASH, owner, spender, rawAmount, nonce, deadline));
-        bytes32 digest = keccak256(abi.encodePacked(uint16(0x1901), domainSeparator, structHash));
+        bytes32 domainSeparator = keccak256(
+            abi.encode(
+                DOMAIN_TYPEHASH,
+                keccak256(bytes(name())),
+                getChainId(),
+                address(this)
+            )
+        );
+        bytes32 structHash = keccak256(
+            abi.encode(
+                PERMIT_TYPEHASH,
+                owner,
+                spender,
+                rawAmount,
+                nonce,
+                deadline
+            )
+        );
+        bytes32 digest = keccak256(
+            abi.encodePacked(uint16(0x1901), domainSeparator, structHash)
+        );
         address signatory = ecrecover(digest, v, r, s);
-        if(signatory == address(0)) revert ZeroAddress();
-        if(signatory != owner) revert OnlyOwner();
+        if (signatory == address(0)) revert ZeroAddress();
+        if (signatory != owner) revert OnlyOwner();
         // increase nonce for the owner
         _nonces[owner]++;
         // call the approve function or allowances function
@@ -262,21 +266,17 @@ contract veTalentToken is ERC20, Ownable, AccessControl, ERC20Burnable {
     }
 
     /**
-    * @notice Returns the `delegatee`
-    * @param delegator The address to get delegatee for
-    */
-    function delegatesView(address delegator)
-        external
-        view
-        returns (address)
-    {
+     * @notice Returns the `delegatee`
+     * @param delegator The address to get delegatee for
+     */
+    function delegatesView(address delegator) external view returns (address) {
         return _delegates[delegator];
     }
 
     /**
-    * @notice Delegate votes from `msg.sender` to `delegatee`
-    * @param delegatee The address to delegate votes to
-    */
+     * @notice Delegate votes from `msg.sender` to `delegatee`
+     * @param delegatee The address to delegate votes to
+     */
     function delegate(address delegatee) external {
         return _delegate(_msgSender(), delegatee);
     }
@@ -290,16 +290,14 @@ contract veTalentToken is ERC20, Ownable, AccessControl, ERC20Burnable {
      * @param r Half of the ECDSA signature pair
      * @param s Half of the ECDSA signature pair
      */
-    function delegateBySig (
+    function delegateBySig(
         address delegatee,
         uint nonce,
         uint expiry,
         uint8 v,
         bytes32 r,
         bytes32 s
-    )
-        external
-    {
+    ) external {
         bytes32 domainSeparator = keccak256(
             abi.encode(
                 DOMAIN_TYPEHASH,
@@ -310,26 +308,17 @@ contract veTalentToken is ERC20, Ownable, AccessControl, ERC20Burnable {
         );
 
         bytes32 structHash = keccak256(
-            abi.encode(
-                DELEGATION_TYPEHASH,
-                delegatee,
-                nonce,
-                expiry
-            )
+            abi.encode(DELEGATION_TYPEHASH, delegatee, nonce, expiry)
         );
 
         bytes32 digest = keccak256(
-            abi.encodePacked(
-                "\x19\x01",
-                domainSeparator,
-                structHash
-            )
+            abi.encodePacked("\x19\x01", domainSeparator, structHash)
         );
 
         address signatory = ecrecover(digest, v, r, s);
-        if(signatory == address(0)) revert ZeroAddress();
-        if(nonce != _nonces[signatory]++) revert InvalidNonce();
-        if(block.timestamp >= expiry) revert SignatureExpired();
+        if (signatory == address(0)) revert ZeroAddress();
+        if (nonce != _nonces[signatory]++) revert InvalidNonce();
+        if (block.timestamp >= expiry) revert SignatureExpired();
         return _delegate(signatory, delegatee);
     }
 
@@ -338,13 +327,10 @@ contract veTalentToken is ERC20, Ownable, AccessControl, ERC20Burnable {
      * @param account The address to get votes balance
      * @return The number of current votes for `account`
      */
-    function getCurrentVotes(address account)
-        external
-        view
-        returns (uint256)
-    {
+    function getCurrentVotes(address account) external view returns (uint256) {
         uint32 nCheckpoints = numCheckpoints[account];
-        return nCheckpoints > 0 ? checkpoints[account][nCheckpoints - 1].votes : 0;
+        return
+            nCheckpoints > 0 ? checkpoints[account][nCheckpoints - 1].votes : 0;
     }
 
     /**
@@ -359,7 +345,10 @@ contract veTalentToken is ERC20, Ownable, AccessControl, ERC20Burnable {
         view
         returns (uint256)
     {
-        require(blockNumber < block.number, "TALENT::getPriorVotes: not yet determined");
+        require(
+            blockNumber < block.number,
+            "TALENT::getPriorVotes: not yet determined"
+        );
 
         uint32 nCheckpoints = numCheckpoints[account];
         if (nCheckpoints == 0) {
@@ -392,9 +381,7 @@ contract veTalentToken is ERC20, Ownable, AccessControl, ERC20Burnable {
         return checkpoints[account][lower].votes;
     }
 
-    function _delegate(address delegator, address delegatee)
-        internal
-    {
+    function _delegate(address delegator, address delegatee) internal {
         address currentDelegate = _delegates[delegator];
         uint256 delegatorBalance = balanceOf(delegator); // balance of underlying PHRO (not scaled);
         _delegates[delegator] = delegatee;
@@ -404,23 +391,47 @@ contract veTalentToken is ERC20, Ownable, AccessControl, ERC20Burnable {
         _moveDelegates(currentDelegate, delegatee, delegatorBalance);
     }
 
-    function _transferTokens(address src, address dst, uint96 amount) internal {
-        require(src != address(0), "TALENT::_transferTokens: cannot transfer from the zero address");
-        require(dst != address(0), "TALENT::_transferTokens: cannot transfer to the zero address");
+    function _transferTokens(
+        address src,
+        address dst,
+        uint96 amount
+    ) internal {
+        require(
+            src != address(0),
+            "TALENT::_transferTokens: cannot transfer from the zero address"
+        );
+        require(
+            dst != address(0),
+            "TALENT::_transferTokens: cannot transfer to the zero address"
+        );
 
-        _balances[src] = sub96(_balances[src], amount, "TALENT::_transferTokens: transfer amount exceeds balance");
-        _balances[dst] = add96(_balances[dst], amount, "TALENT::_transferTokens: transfer amount overflows");
+        _balances[src] = sub96(
+            _balances[src],
+            amount,
+            "TALENT::_transferTokens: transfer amount exceeds balance"
+        );
+        _balances[dst] = add96(
+            _balances[dst],
+            amount,
+            "TALENT::_transferTokens: transfer amount overflows"
+        );
         emit Transfer(src, dst, amount);
 
         _moveDelegates(_delegates[src], _delegates[dst], amount);
     }
 
-    function _moveDelegates(address srcRep, address dstRep, uint256 amount) internal {
+    function _moveDelegates(
+        address srcRep,
+        address dstRep,
+        uint256 amount
+    ) internal {
         if (srcRep != dstRep && amount > 0) {
             if (srcRep != address(0)) {
                 // decrease old representative
                 uint32 srcRepNum = numCheckpoints[srcRep];
-                uint256 srcRepOld = srcRepNum > 0 ? checkpoints[srcRep][srcRepNum - 1].votes : 0;
+                uint256 srcRepOld = srcRepNum > 0
+                    ? checkpoints[srcRep][srcRepNum - 1].votes
+                    : 0;
                 uint256 srcRepNew = srcRepOld - amount;
                 _writeCheckpoint(srcRep, srcRepNum, srcRepOld, srcRepNew);
             }
@@ -428,7 +439,9 @@ contract veTalentToken is ERC20, Ownable, AccessControl, ERC20Burnable {
             if (dstRep != address(0)) {
                 // increase new representative
                 uint32 dstRepNum = numCheckpoints[dstRep];
-                uint256 dstRepOld = dstRepNum > 0 ? checkpoints[dstRep][dstRepNum - 1].votes : 0;
+                uint256 dstRepOld = dstRepNum > 0
+                    ? checkpoints[dstRep][dstRepNum - 1].votes
+                    : 0;
                 uint256 dstRepNew = dstRepOld + amount;
                 _writeCheckpoint(dstRep, dstRepNum, dstRepOld, dstRepNew);
             }
@@ -440,46 +453,69 @@ contract veTalentToken is ERC20, Ownable, AccessControl, ERC20Burnable {
         uint32 nCheckpoints,
         uint256 oldVotes,
         uint256 newVotes
-    )
-        internal
-    {
-        uint32 blockNumber = safe32(block.number, "TALENT::_writeCheckpoint: block number exceeds 32 bits");
+    ) internal {
+        uint32 blockNumber = safe32(
+            block.number,
+            "TALENT::_writeCheckpoint: block number exceeds 32 bits"
+        );
 
-        if (nCheckpoints > 0 && checkpoints[delegatee][nCheckpoints - 1].fromBlock == blockNumber) {
+        if (
+            nCheckpoints > 0 &&
+            checkpoints[delegatee][nCheckpoints - 1].fromBlock == blockNumber
+        ) {
             checkpoints[delegatee][nCheckpoints - 1].votes = newVotes;
         } else {
-            checkpoints[delegatee][nCheckpoints] = Checkpoint(blockNumber, newVotes);
+            checkpoints[delegatee][nCheckpoints] = Checkpoint(
+                blockNumber,
+                newVotes
+            );
             numCheckpoints[delegatee] = nCheckpoints + 1;
         }
 
         emit DelegateVotesChanged(delegatee, oldVotes, newVotes);
     }
 
-    function safe32(uint n, string memory errorMessage) internal pure returns (uint32) {
+    function safe32(uint n, string memory errorMessage)
+        internal
+        pure
+        returns (uint32)
+    {
         require(n < 2**32, errorMessage);
         return uint32(n);
     }
 
-    function safe96(uint n, string memory errorMessage) internal pure returns (uint96) {
+    function safe96(uint n, string memory errorMessage)
+        internal
+        pure
+        returns (uint96)
+    {
         require(n < 2**96, errorMessage);
         return uint96(n);
     }
 
-    function add96(uint96 a, uint96 b, string memory errorMessage) internal pure returns (uint96) {
+    function add96(
+        uint96 a,
+        uint96 b,
+        string memory errorMessage
+    ) internal pure returns (uint96) {
         uint96 c = a + b;
         require(c >= a, errorMessage);
         return c;
     }
 
-    function sub96(uint96 a, uint96 b, string memory errorMessage) internal pure returns (uint96) {
+    function sub96(
+        uint96 a,
+        uint96 b,
+        string memory errorMessage
+    ) internal pure returns (uint96) {
         require(b <= a, errorMessage);
         return a - b;
     }
 
     function getChainId() internal view returns (uint) {
         uint256 chainId;
-        assembly { 
-            chainId := chainid() 
+        assembly {
+            chainId := chainid()
         }
 
         return chainId;

@@ -1,14 +1,15 @@
 pragma solidity ^0.8.15;
 pragma experimental ABIEncoderV2;
-//SPDX-License-Identifier: MIT
+//SPDX-License-Identifier: GPL
 
+// OpenZeppelin imports
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
-//import "../utility/ReentrancyGuard.sol";
 
+// Interfaces
 import "./interfaces/ITDAOToken.sol";
 import "./interfaces/IVETDAOToken.sol";
 
@@ -39,17 +40,17 @@ contract TalentStaking is AccessControl, TokenRecover {
 
     address private asset;
 
-    // The Token Interfaces
+    // Token Interfaces
     ITDAOToken public talentToken;
     IVETDAOToken public veTalentToken;
 
     uint256 public currentApy;
 
-    // Burn tokens address
+    // Burn address
     address public constant burnAddress = 0x000000000000000000000000000000000000dEaD;
 
     // Fee taken on all rewards and sent to
-    // the reserve pool. 1% or 100 basis points.
+    // the treasury. 1% or 100 basis points.
     // Updateable by the DAO.
     uint256 public rewardFee = 100;
 
@@ -112,7 +113,6 @@ contract TalentStaking is AccessControl, TokenRecover {
     event Entered(address indexed user, uint256 amount, uint256 timestamp);
     event Exited(address indexed user, uint256 amount, uint256 timestamp);
 
-        // ReentrancyGuard()
     constructor (
         uint256 _startBlock,
         uint256 _bonusEndBlock,
@@ -233,7 +233,7 @@ contract TalentStaking is AccessControl, TokenRecover {
         }
         uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
         uint256 talentReward = (multiplier * (TALENT_PER_BLOCK * pool.allocationPoint)) / totalAllocationPoint;
-        talentToken.mintTokensTo(address(this), talentReward);
+        talentToken.mintTokens(address(this), talentReward);
         pool.accTalentPerShare = pool.accTalentPerShare + ((talentReward * 1e12) / lpSupply);
         pool.lastRewardBlock = block.number;
     }
@@ -297,7 +297,7 @@ contract TalentStaking is AccessControl, TokenRecover {
         if (_amount <= talentBal) {
             talentToken.transfer(_to, _amount);
         } else {
-            talentToken.mintTokensTo(_to, _amount);
+            talentToken.mintTokens(_to, _amount);
         }
     }
 

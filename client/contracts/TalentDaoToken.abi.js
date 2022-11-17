@@ -486,7 +486,7 @@ module.exports = [
         "type": "uint256"
       }
     ],
-    "name": "mintTokensTo",
+    "name": "mintTokens",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -595,6 +595,24 @@ module.exports = [
       }
     ],
     "name": "setupMinterRole",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_newAdmin",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_oldAdmin",
+        "type": "address"
+      }
+    ],
+    "name": "setupNewAdminRole",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

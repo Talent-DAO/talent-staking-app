@@ -946,12 +946,12 @@ module.exports = [
     "inputs": [
       {
         "internalType": "address",
-        "name": "_newAdmin",
+        "name": "_oldAdmin",
         "type": "address"
       },
       {
         "internalType": "address",
-        "name": "_oldAdmin",
+        "name": "_newAdmin",
         "type": "address"
       }
     ],
@@ -964,7 +964,7 @@ module.exports = [
     "inputs": [
       {
         "internalType": "address",
-        "name": "_newOperator",
+        "name": "newOperator",
         "type": "address"
       }
     ],

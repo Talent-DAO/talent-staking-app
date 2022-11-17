@@ -1,16 +1,8 @@
-// deploy/00_deploy_tokens_manager.js
+// deploy/00_deploy_tokens_staking.js
 
 const { ethers, run } = require("hardhat");
 
 const localChainId = "31337";
-
-// const sleep = (ms) =>
-//   new Promise((r) =>
-//     setTimeout(() => {
-//       console.log(`waited for ${(ms / 1000).toFixed(3)} seconds`);
-//       r();
-//     }, ms)
-//   );
 
 module.exports = async ({ getNamedAccounts, deployments, getChainId }) => {
   const { deploy } = deployments;
@@ -28,7 +20,7 @@ module.exports = async ({ getNamedAccounts, deployments, getChainId }) => {
     args: ["0x3f15B8c6F9939879Cb030D6dd935348E57109637"],
     log: true,
   });
-  
+
   const stakingContract = await deploy("TalentStaking", {
     from: deployer,
     args: [

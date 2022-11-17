@@ -5,7 +5,7 @@
       "chainId": "31337",
       "contracts": {
         "TalentDaoToken": {
-          "address": "0xe70fc4dbE4b655DD80FE6C02e0E9C5d3215420Ef",
+          "address": "0x05438bE76B19df0C743D1c7bb2Dd6aA855C30dfE",
           "abi": [
             {
               "inputs": [
@@ -494,7 +494,7 @@
                   "type": "uint256"
                 }
               ],
-              "name": "mintTokensTo",
+              "name": "mintTokens",
               "outputs": [],
               "stateMutability": "nonpayable",
               "type": "function"
@@ -603,6 +603,24 @@
                 }
               ],
               "name": "setupMinterRole",
+              "outputs": [],
+              "stateMutability": "nonpayable",
+              "type": "function"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "address",
+                  "name": "_newAdmin",
+                  "type": "address"
+                },
+                {
+                  "internalType": "address",
+                  "name": "_oldAdmin",
+                  "type": "address"
+                }
+              ],
+              "name": "setupNewAdminRole",
               "outputs": [],
               "stateMutability": "nonpayable",
               "type": "function"
@@ -734,7 +752,7 @@
           ]
         },
         "TalentStaking": {
-          "address": "0xA172158Bc63C8037f5eA9f6373f18d2d42A8B9b4",
+          "address": "0x9E054241049DFb717bB48e9A827BE1aD7E7c3765",
           "abi": [
             {
               "inputs": [
@@ -1715,7 +1733,7 @@
           ]
         },
         "veTalentToken": {
-          "address": "0xCD4ee20B85dd044742a2Ef1627E09b371D785286",
+          "address": "0x4492B3337df6ef1D9279Fc316C816b0a4DaCD519",
           "abi": [
             {
               "inputs": [
@@ -2664,12 +2682,12 @@
               "inputs": [
                 {
                   "internalType": "address",
-                  "name": "_newAdmin",
+                  "name": "_oldAdmin",
                   "type": "address"
                 },
                 {
                   "internalType": "address",
-                  "name": "_oldAdmin",
+                  "name": "_newAdmin",
                   "type": "address"
                 }
               ],
@@ -2682,7 +2700,7 @@
               "inputs": [
                 {
                   "internalType": "address",
-                  "name": "_newOperator",
+                  "name": "newOperator",
                   "type": "address"
                 }
               ],

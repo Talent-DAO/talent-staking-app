@@ -1,4 +1,4 @@
-pragma solidity ^0.8.4;
+pragma solidity ^0.8.15;
 pragma experimental ABIEncoderV2;
 //SPDX-License-Identifier: GPL
 
@@ -56,11 +56,6 @@ contract TalentDaoToken is Ownable, AccessControl, ERC20 {
         _;
     }
 
-    modifier hasEnoughBalance(uint256 balance, uint256 amount) {
-        if(balance >= amount) revert LowBalance();
-        _;
-    }
-
     constructor(address owner_)
         ERC20("Talent DAO Token", "TALENT")
     {
@@ -68,9 +63,17 @@ contract TalentDaoToken is Ownable, AccessControl, ERC20 {
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
         _setupRole(MINTER_ROLE, _msgSender());
         // Mint some tokens... test....
-        mintTokensTo(owner_, 200000000 ether);
+        mintTokens(owner_, 200000000 ether);
         _revokeRole(MINTER_ROLE, _msgSender());
         transferOwnership(owner_);
+    }
+
+    function setupNewAdminRole(address _newAdmin, address _oldAdmin)
+        public
+        isAdminOrOwner
+    {
+        _setupRole(DEFAULT_ADMIN_ROLE, _newAdmin);
+        _revokeRole(DEFAULT_ADMIN_ROLE, _oldAdmin);
     }
 
     /** @dev only the default admin role can add a minter
@@ -78,7 +81,7 @@ contract TalentDaoToken is Ownable, AccessControl, ERC20 {
     */
     function setupMinterRole(address minter)
         public
-        onlyOwner
+        isAdminOrOwner
     {
         if(!hasRole(DEFAULT_ADMIN_ROLE, _msgSender())) revert WrongRole();
         _setupRole(MINTER_ROLE, minter);
@@ -89,7 +92,7 @@ contract TalentDaoToken is Ownable, AccessControl, ERC20 {
     */
     function setupOperatorRole(address operator)
         public
-        onlyOwner
+        isAdminOrOwner
     {
         if(!hasRole(DEFAULT_ADMIN_ROLE, _msgSender())) revert WrongRole();
         _setupRole(OPERATOR_ROLE, operator);
@@ -100,7 +103,7 @@ contract TalentDaoToken is Ownable, AccessControl, ERC20 {
     */
     function setupDaoRole(address dao)
         public
-        onlyOwner
+        isAdminOrOwner
     {
         _setupRole(DAO_ROLE, dao);
     }
@@ -110,7 +113,7 @@ contract TalentDaoToken is Ownable, AccessControl, ERC20 {
     */
     function setupDistributorRole(address distributor)
         public
-        onlyOwner
+        isAdminOrOwner
     {
         if(hasRole(OPERATOR_ROLE, _msgSender()) || hasRole(DEFAULT_ADMIN_ROLE, _msgSender())) revert WrongRole();
         _setupRole(DISTRIBUTOR_ROLE, distributor);
@@ -120,7 +123,7 @@ contract TalentDaoToken is Ownable, AccessControl, ERC20 {
     *   @param _to who the tokens are minted to
     *   @param _amount the amount of tokens to mint
     */  
-    function mintTokensTo(address _to, uint256 _amount)
+    function mintTokens(address _to, uint256 _amount)
         public
         isPermittedMinter
     {
