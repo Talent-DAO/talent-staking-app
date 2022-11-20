@@ -2,27 +2,40 @@ pragma solidity ^0.8.15;
 pragma experimental ABIEncoderV2;
 //SPDX-License-Identifier: GPL
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 
-contract veTalentToken is ERC20, Ownable, AccessControl, ERC20Burnable {
+/// @title The veTalent token is the staking/governance token of the Talent DAO
+/// @author jaxcoder
+/// @dev Contract is ERC20 token contract with additional functionality for staking and governance with timelock.
+contract veTalentToken is Ownable, AccessControl, ERC20Burnable {
     using SafeERC20 for IERC20;
 
     // Roles
     bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant DAO_ROLE = keccak256("DAO_ROLE");
-    bytes32 public constant DISTRIBUTOR_ROLE = keccak256("DISTRIBUTOR_ROLE");
+
+    // Timelock constants
+    uint256 public MIN_DELAY = LOCK_PERIOD_LEVEL_1;
+    uint256 public constant LOCK_PERIOD_LEVEL_1 = 21 days; // 3 weeks
+    uint256 public constant LOCK_PERIOD_LEVEL_2 = 42 days; // 6 weeks
+    uint256 public constant LOCK_PERIOD_LEVEL_3 = 63 days; // 9 weeks
+    uint256 public constant LOCK_PERIOD_LEVEL_4 = 84 days; // 12 weeks
+    uint256 public constant LOCK_PERIOD_LEVEL_5 = 105 days; // 15 weeks
+    uint256 public constant LOCK_PERIOD_EXTENSION = 21 days;
+    uint256 public constant MAX_LOCK_PERIOD = 1460 days; // 4 years
+    uint256 public constant GRACE_PERIOD = 10 days;
 
     // Mappings
     mapping(address => uint96) internal _balances;
     mapping(address => address) internal _delegates;
     mapping(address => mapping(address => uint256)) public allowances;
     mapping(address => mapping(uint32 => Checkpoint)) public checkpoints;
+    mapping(bytes32 => bool) public mintQueue;
 
     /// @notice The number of checkpoints for each account
     mapping(address => uint32) public numCheckpoints;
@@ -66,6 +79,25 @@ contract veTalentToken is ERC20, Ownable, AccessControl, ERC20Burnable {
     /// @notice An event thats emitted when a snapshot has been done
     event SnapshotDone(address owner, uint128 oldValue, uint128 newValue);
 
+    /// @notice An event thats emitted when mint has been queued
+    event QueueMint(
+        bytes32 indexed txnHash,
+        address indexed to,
+        uint256 amount,
+        uint256 timestamp
+    );
+
+    /// @notice An event thats emitted when mint has been executed
+    event ExecuteMint(
+        bytes32 indexed txnHash,
+        address indexed to,
+        uint256 amount,
+        uint256 timestamp
+    );
+
+    /// @notice An event thats emitted when mint transaction has been cancelled
+    event CancelMint(bytes32 indexed txnHash);
+
     // Struct
     struct Checkpoint {
         uint32 fromBlock;
@@ -80,6 +112,11 @@ contract veTalentToken is ERC20, Ownable, AccessControl, ERC20Burnable {
     error OnlyOwner();
     error InvalidNonce();
     error SignatureExpired();
+    error AlreadyQueued();
+    error NotQueued();
+    error TimeNotInRange();
+    error NotReady();
+    error TimeExpired();
 
     // Modifiers
     modifier isPermittedMinter() {
@@ -100,12 +137,6 @@ contract veTalentToken is ERC20, Ownable, AccessControl, ERC20Burnable {
         _;
     }
 
-    modifier isPermittedDistributor() {
-        if (!hasRole(DISTRIBUTOR_ROLE, msg.sender) || owner() == msg.sender)
-            revert WrongRole();
-        _;
-    }
-
     modifier isAdminOrOwner() {
         if (!hasRole(DEFAULT_ADMIN_ROLE, msg.sender) || owner() == msg.sender)
             revert WrongRole();
@@ -122,7 +153,6 @@ contract veTalentToken is ERC20, Ownable, AccessControl, ERC20Burnable {
         ERC20Burnable()
     {
         _setupRole(OPERATOR_ROLE, msg.sender);
-        _setupRole(DISTRIBUTOR_ROLE, msg.sender);
         _setupRole(MINTER_ROLE, msg.sender);
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _setupRole(DAO_ROLE, msg.sender);
@@ -130,6 +160,101 @@ contract veTalentToken is ERC20, Ownable, AccessControl, ERC20Burnable {
         transferOwnership(_owner);
     }
 
+    // Public functions
+    /// @notice Create a hash of transaction data for use in the queue
+    function generateTxnHash(
+        address to,
+        uint256 amount,
+        uint256 timestamp
+    ) public pure returns (bytes32) {
+        return keccak256(abi.encodePacked(to, amount, timestamp));
+    }
+
+    /// @notice Queue a mint transaction
+    function queueMint(
+        address to,
+        uint256 amount,
+        uint256 timestamp
+    ) public {
+        // generate a txn hash
+        bytes32 txnHash = generateTxnHash(to, amount, timestamp);
+
+        // check if txn is already queued
+        if (mintQueue[txnHash]) revert AlreadyQueued();
+
+        // check if timestamp is in range
+        if (
+            timestamp < block.timestamp + MIN_DELAY ||
+            timestamp > block.timestamp + MAX_LOCK_PERIOD
+        ) revert TimeNotInRange();
+
+        // add txn to queue
+        mintQueue[txnHash] = true;
+
+        // emit event
+        emit QueueMint(txnHash, to, amount, timestamp);
+    }
+
+    /// @notice Execute a mint transaction
+    function executeMint(
+        address to,
+        uint256 amount,
+        uint256 timestamp
+    ) public isPermittedMinter isAdminOrOwner isPermittedDao {
+        // generate a txn hash
+        bytes32 txnHash = generateTxnHash(to, amount, timestamp);
+
+        // check if txn is queued
+        if (!mintQueue[txnHash]) revert NotQueued();
+
+        // check if txn is ready
+        if (timestamp > block.timestamp) revert NotReady();
+
+        // check if txn is expired
+        if (timestamp + GRACE_PERIOD < block.timestamp) revert TimeExpired();
+
+        // mint tokens
+        _mint(to, amount);
+
+        // remove txn from queue
+        mintQueue[txnHash] = false;
+
+        // execute mint
+        mint(to, amount);
+
+        // emit event
+        emit ExecuteMint(txnHash, to, amount, timestamp);
+    }
+
+    /// @notice Cancel a mint transaction
+    function cancelMint(bytes32 txnHash)
+        public
+        isPermittedMinter
+        isAdminOrOwner
+        isPermittedDao
+    {
+        // check if txn is queued
+        if (!mintQueue[txnHash]) revert NotQueued();
+
+        // remove txn from queue
+        mintQueue[txnHash] = false;
+
+        // emit event
+        emit CancelMint(txnHash);
+    }
+
+    /// @notice Mint to a given address
+    function mint(address to, uint256 amount)
+        public
+        isPermittedMinter
+        isAdminOrOwner
+        isPermittedDao
+    {
+        _mint(to, amount);
+    }
+
+    // Admin functions
+    /// @notice Setup a new admin role
     function setupNewAdminRole(address _oldAdmin, address _newAdmin)
         public
         onlyOwner
@@ -154,15 +279,11 @@ contract veTalentToken is ERC20, Ownable, AccessControl, ERC20Burnable {
         _setupRole(OPERATOR_ROLE, newOperator);
     }
 
-    function setupDistributorRole(address _newDistributor) public {
-        if (
-            hasRole(OPERATOR_ROLE, _msgSender()) ||
-            hasRole(DEFAULT_ADMIN_ROLE, _msgSender())
-        ) revert WrongRole();
-        _setupRole(DISTRIBUTOR_ROLE, _newDistributor);
-    }
-
     function setupDaoRole(address _newDao) public onlyOwner {
+        if (
+            !hasRole(DEFAULT_ADMIN_ROLE, _msgSender()) ||
+            owner() != _msgSender()
+        ) revert WrongRole();
         _setupRole(DAO_ROLE, _newDao);
     }
 
