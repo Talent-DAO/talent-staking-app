@@ -20,6 +20,7 @@ contract veTalentToken is Ownable, AccessControl, ERC20Burnable {
     bytes32 public constant DAO_ROLE = keccak256("DAO_ROLE");
 
     // Timelock constants
+    // todo: update these with the correct values
     uint256 public MIN_DELAY = LOCK_PERIOD_LEVEL_1;
     uint256 public constant LOCK_PERIOD_LEVEL_1 = 21 days; // 3 weeks
     uint256 public constant LOCK_PERIOD_LEVEL_2 = 42 days; // 6 weeks
@@ -36,6 +37,7 @@ contract veTalentToken is Ownable, AccessControl, ERC20Burnable {
     mapping(address => mapping(address => uint256)) public allowances;
     mapping(address => mapping(uint32 => Checkpoint)) public checkpoints;
     mapping(bytes32 => bool) public mintQueue;
+    mapping(address => uint256) public lockedBalances;
 
     /// @notice The number of checkpoints for each account
     mapping(address => uint32) public numCheckpoints;
@@ -143,13 +145,13 @@ contract veTalentToken is Ownable, AccessControl, ERC20Burnable {
         _;
     }
 
-    modifier hasEnoughBalance(uint256 balance, uint256 amount) {
-        if (balance >= amount) revert LowBalance();
+    modifier hasEnoughBalance(address to, uint256 amount) {
+        if (_balances[to] < amount) revert LowBalance();
         _;
     }
 
     constructor(address _owner)
-        ERC20("veTalent Voting Token", "veTALENT")
+        ERC20("veTalent Token", "veTALENT")
         ERC20Burnable()
     {
         _setupRole(OPERATOR_ROLE, msg.sender);
@@ -161,6 +163,69 @@ contract veTalentToken is Ownable, AccessControl, ERC20Burnable {
     }
 
     // Public functions
+    /// @notice Returns the locked balance of an account
+    /// @param account The address of the account
+    /// @return The locked balance of the account
+    function getLockedBalance(address account) public view returns (uint256) {
+        return _balances[account];
+    }
+
+    /// @dev See {ERC20-_beforeTokenTransfer}
+    /// @param _from the from address
+    /// @param _to the to address
+    /// @param _amount the amount
+    function _beforeTokenTransfer(
+        address _from,
+        address _to,
+        uint256 _amount
+    ) internal virtual override {
+        super._beforeTokenTransfer(_from, _to, _amount);
+        // If the amount being transfered is more than zero, update the delegates
+        if (_amount > 0) {
+            _moveDelegates(_delegates[_from], _delegates[_to], _amount);
+        }
+        // If the amount being transfered is more that what is unlocked, revert
+        if (_from != address(0) && _to != address(0)) {
+            if (_balances[_from] - _amount < getLockedBalance(_from)) {
+                revert LowBalance();
+            }
+        }
+    }
+
+    /// @notice Mint token function to address
+    /// @dev This mints to a specified address
+    /// @param _to The to address to mint to
+    /// @param _amount The amount to mint
+    function mintTokensTo(address _to, uint256 _amount)
+        public
+        isPermittedMinter
+    {
+        if (_to == address(0)) revert ZeroAddress();
+        _balances[_to] += uint96(_amount);
+
+        _mint(_to, _amount);
+        _moveDelegates(address(0), _delegates[_to], _amount);
+    }
+
+    /// @notice Burn token from sender function
+    /// @param _amount The amount to burn from sender
+    function burn(uint256 _amount) public virtual override {
+        if (msg.sender == address(0)) revert ZeroAddress();
+        _balances[msg.sender] -= uint96(_amount);
+
+        _burn(msg.sender, _amount);
+    }
+
+    /// @notice Burns from a specified address
+    /// @param _amount The amount to burn
+    /// @param _from The from address to burn from
+    function burnFrom(address _from, uint256 _amount) public virtual override {
+        if (_from == address(0)) revert ZeroAddress();
+        _balances[_from] -= uint96(_amount);
+
+        _burn(_from, _amount);
+    }
+
     /// @notice Create a hash of transaction data for use in the queue
     function generateTxnHash(
         address to,
@@ -220,7 +285,7 @@ contract veTalentToken is Ownable, AccessControl, ERC20Burnable {
         mintQueue[txnHash] = false;
 
         // execute mint
-        mint(to, amount);
+        mintTokensTo(to, amount);
 
         // emit event
         emit ExecuteMint(txnHash, to, amount, timestamp);
@@ -243,17 +308,7 @@ contract veTalentToken is Ownable, AccessControl, ERC20Burnable {
         emit CancelMint(txnHash);
     }
 
-    /// @notice Mint to a given address
-    function mint(address to, uint256 amount)
-        public
-        isPermittedMinter
-        isAdminOrOwner
-        isPermittedDao
-    {
-        _mint(to, amount);
-    }
-
-    // Admin functions
+    // Admin functions for roles
     /// @notice Setup a new admin role
     function setupNewAdminRole(address _oldAdmin, address _newAdmin)
         public
@@ -285,52 +340,6 @@ contract veTalentToken is Ownable, AccessControl, ERC20Burnable {
             owner() != _msgSender()
         ) revert WrongRole();
         _setupRole(DAO_ROLE, _newDao);
-    }
-
-    /// @dev See {ERC20-_beforeTokenTransfer}
-    /// @param _from the from address
-    /// @param _to the to address
-    /// @param _amount the amount
-    function _beforeTokenTransfer(
-        address _from,
-        address _to,
-        uint256 _amount
-    ) internal virtual override {
-        super._beforeTokenTransfer(_from, _to, _amount);
-    }
-
-    /// @notice Mint token function to address
-    /// @dev This mints to a specified address
-    /// @param _to The to address to mint to
-    /// @param _amount The amount to mint
-    function mintTokensTo(address _to, uint256 _amount)
-        external
-        isPermittedMinter
-    {
-        if (_to == address(0)) revert ZeroAddress();
-        _balances[_to] += uint96(_amount);
-
-        _mint(_to, _amount);
-        _moveDelegates(address(0), _delegates[_to], _amount);
-    }
-
-    /// @notice Burn token from sender function
-    /// @param _amount The amount to burn from sender
-    function burn(uint256 _amount) public virtual override {
-        if (msg.sender == address(0)) revert ZeroAddress();
-        _balances[msg.sender] -= uint96(_amount);
-
-        _burn(msg.sender, _amount);
-    }
-
-    /// @notice Burns from a specified address
-    /// @param _amount The amount to burn
-    /// @param _from The from address to burn from
-    function burnFrom(address _from, uint256 _amount) public virtual override {
-        if (_from == address(0)) revert ZeroAddress();
-        _balances[_from] -= uint96(_amount);
-
-        _burn(_from, _amount);
     }
 
     /**
@@ -504,7 +513,7 @@ contract veTalentToken is Ownable, AccessControl, ERC20Burnable {
 
     function _delegate(address delegator, address delegatee) internal {
         address currentDelegate = _delegates[delegator];
-        uint256 delegatorBalance = balanceOf(delegator); // balance of underlying PHRO (not scaled);
+        uint256 delegatorBalance = balanceOf(delegator); // balance of underlying veTALENT (not scaled);
         _delegates[delegator] = delegatee;
 
         emit DelegateChanged(delegator, currentDelegate, delegatee);
