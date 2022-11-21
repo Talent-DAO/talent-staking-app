@@ -8,28 +8,65 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 
+// todo: should we use the Votes.sol?
+// import "@openzeppelin/contracts/governance/utils/Votes.sol";
+
 /// @title The veTalent token is the staking/governance token of the Talent DAO
 /// @author jaxcoder
+/// @custom:security-contact jaxcoder75@gmail.com
 /// @dev Contract is ERC20 token contract with additional functionality for staking and governance with timelock.
 contract veTalentToken is Ownable, AccessControl, ERC20Burnable {
     using SafeERC20 for IERC20;
 
     // Roles
-    bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
+    bytes32 public constant EXECUTOR_ROLE = keccak256("EXECUTOR_ROLE");
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
-    bytes32 public constant DAO_ROLE = keccak256("DAO_ROLE");
+    bytes32 public constant PROPOSER_ROLE = keccak256("PROPOSER_ROLE");
 
     // Timelock constants
     // todo: update these with the correct values
     uint256 public MIN_DELAY = LOCK_PERIOD_LEVEL_1;
-    uint256 public constant LOCK_PERIOD_LEVEL_1 = 21 days; // 3 weeks
-    uint256 public constant LOCK_PERIOD_LEVEL_2 = 42 days; // 6 weeks
-    uint256 public constant LOCK_PERIOD_LEVEL_3 = 63 days; // 9 weeks
-    uint256 public constant LOCK_PERIOD_LEVEL_4 = 84 days; // 12 weeks
-    uint256 public constant LOCK_PERIOD_LEVEL_5 = 105 days; // 15 weeks
-    uint256 public constant LOCK_PERIOD_EXTENSION = 21 days;
+    uint256 public constant LOCK_PERIOD_LEVEL_1 = 90 days; // 3 months
+    uint256 public constant LOCK_PERIOD_LEVEL_2 = 180 days; // 6 months
+    uint256 public constant LOCK_PERIOD_LEVEL_3 = 365 days; // 12 months
+    uint256 public constant LOCK_PERIOD_LEVEL_4 = 730 days; // 2 years
+    uint256 public constant LOCK_PERIOD_LEVEL_5 = 1460 days; // 4 years
+    uint256 public constant LOCK_PERIOD_EXTENSION = 90 days;
     uint256 public constant MAX_LOCK_PERIOD = 1460 days; // 4 years
-    uint256 public constant GRACE_PERIOD = 10 days;
+    uint256 public constant GRACE_PERIOD = 21 days;
+
+    // Lock Period Enum Levels
+    enum LockPeriodLevel {
+        LEVEL_1,
+        LEVEL_2,
+        LEVEL_3,
+        LEVEL_4,
+        LEVEL_5
+    }
+
+    mapping(address => uint256) public timeUserLocked;
+    mapping(address => LockPeriodLevel) public lockPeriodLevels;
+
+    function returnLockPeriod(address user)
+        public
+        view
+        returns (uint256 lockPeriod)
+    {
+        LockPeriodLevel level = lockPeriodLevels[user];
+        if (level == LockPeriodLevel.LEVEL_1) {
+            return LOCK_PERIOD_LEVEL_1;
+        } else if (level == LockPeriodLevel.LEVEL_2) {
+            return LOCK_PERIOD_LEVEL_2;
+        } else if (level == LockPeriodLevel.LEVEL_3) {
+            return LOCK_PERIOD_LEVEL_3;
+        } else if (level == LockPeriodLevel.LEVEL_4) {
+            return LOCK_PERIOD_LEVEL_4;
+        } else if (level == LockPeriodLevel.LEVEL_5) {
+            return LOCK_PERIOD_LEVEL_5;
+        }
+
+        return 0;
+    }
 
     // Mappings
     mapping(address => uint96) internal _balances;
@@ -37,7 +74,6 @@ contract veTalentToken is Ownable, AccessControl, ERC20Burnable {
     mapping(address => mapping(address => uint256)) public allowances;
     mapping(address => mapping(uint32 => Checkpoint)) public checkpoints;
     mapping(bytes32 => bool) public mintQueue;
-    mapping(address => uint256) public lockedBalances;
 
     /// @notice The number of checkpoints for each account
     mapping(address => uint32) public numCheckpoints;
@@ -127,14 +163,14 @@ contract veTalentToken is Ownable, AccessControl, ERC20Burnable {
         _;
     }
 
-    modifier isPermittedDao() {
-        if (!hasRole(DAO_ROLE, msg.sender) || owner() == msg.sender)
+    modifier isPermittedProposer() {
+        if (!hasRole(PROPOSER_ROLE, msg.sender) || owner() == msg.sender)
             revert WrongRole();
         _;
     }
 
     modifier isPermittedOperator() {
-        if (!hasRole(OPERATOR_ROLE, msg.sender) || owner() == msg.sender)
+        if (!hasRole(EXECUTOR_ROLE, msg.sender) || owner() == msg.sender)
             revert WrongRole();
         _;
     }
@@ -150,14 +186,21 @@ contract veTalentToken is Ownable, AccessControl, ERC20Burnable {
         _;
     }
 
+    modifier isLocked(address to) {
+        uint256 lockPeriod = returnLockPeriod(to);
+        uint256 timeLockedSoFar = block.timestamp - timeUserLocked[to];
+        if (lockPeriod >= timeLockedSoFar - lockPeriod) revert NotReady();
+        _;
+    }
+
     constructor(address _owner)
         ERC20("veTalent Token", "veTALENT")
         ERC20Burnable()
     {
-        _setupRole(OPERATOR_ROLE, msg.sender);
+        _setupRole(EXECUTOR_ROLE, msg.sender);
         _setupRole(MINTER_ROLE, msg.sender);
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _setupRole(DAO_ROLE, msg.sender);
+        _setupRole(PROPOSER_ROLE, msg.sender);
         _mint(msg.sender, 10000000 ether);
         transferOwnership(_owner);
     }
@@ -265,7 +308,7 @@ contract veTalentToken is Ownable, AccessControl, ERC20Burnable {
         address to,
         uint256 amount,
         uint256 timestamp
-    ) public isPermittedMinter isAdminOrOwner isPermittedDao {
+    ) public isPermittedMinter isAdminOrOwner isPermittedProposer {
         // generate a txn hash
         bytes32 txnHash = generateTxnHash(to, amount, timestamp);
 
@@ -296,7 +339,7 @@ contract veTalentToken is Ownable, AccessControl, ERC20Burnable {
         public
         isPermittedMinter
         isAdminOrOwner
-        isPermittedDao
+        isPermittedProposer
     {
         // check if txn is queued
         if (!mintQueue[txnHash]) revert NotQueued();
@@ -331,7 +374,7 @@ contract veTalentToken is Ownable, AccessControl, ERC20Burnable {
             !hasRole(DEFAULT_ADMIN_ROLE, _msgSender()) ||
             owner() != _msgSender()
         ) revert WrongRole();
-        _setupRole(OPERATOR_ROLE, newOperator);
+        _setupRole(EXECUTOR_ROLE, newOperator);
     }
 
     function setupDaoRole(address _newDao) public onlyOwner {
@@ -339,7 +382,7 @@ contract veTalentToken is Ownable, AccessControl, ERC20Burnable {
             !hasRole(DEFAULT_ADMIN_ROLE, _msgSender()) ||
             owner() != _msgSender()
         ) revert WrongRole();
-        _setupRole(DAO_ROLE, _newDao);
+        _setupRole(PROPOSER_ROLE, _newDao);
     }
 
     /**
@@ -393,63 +436,6 @@ contract veTalentToken is Ownable, AccessControl, ERC20Burnable {
         allowances[owner][spender] = rawAmount;
         _approve(owner, spender, rawAmount);
         emit Approval(owner, spender, rawAmount);
-    }
-
-    /**
-     * @notice Returns the `delegatee`
-     * @param delegator The address to get delegatee for
-     */
-    function delegatesView(address delegator) external view returns (address) {
-        return _delegates[delegator];
-    }
-
-    /**
-     * @notice Delegate votes from `msg.sender` to `delegatee`
-     * @param delegatee The address to delegate votes to
-     */
-    function delegate(address delegatee) external {
-        return _delegate(_msgSender(), delegatee);
-    }
-
-    /**
-     * @notice Delegates votes from signatory to `delegatee`
-     * @param delegatee The address to delegate votes to
-     * @param nonce The contract state required to match the signature
-     * @param expiry The time at which to expire the signature
-     * @param v The recovery byte of the signature
-     * @param r Half of the ECDSA signature pair
-     * @param s Half of the ECDSA signature pair
-     */
-    function delegateBySig(
-        address delegatee,
-        uint nonce,
-        uint expiry,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    ) external {
-        bytes32 domainSeparator = keccak256(
-            abi.encode(
-                DOMAIN_TYPEHASH,
-                keccak256(bytes(name())),
-                getChainId(),
-                address(this)
-            )
-        );
-
-        bytes32 structHash = keccak256(
-            abi.encode(DELEGATION_TYPEHASH, delegatee, nonce, expiry)
-        );
-
-        bytes32 digest = keccak256(
-            abi.encodePacked("\x19\x01", domainSeparator, structHash)
-        );
-
-        address signatory = ecrecover(digest, v, r, s);
-        if (signatory == address(0)) revert ZeroAddress();
-        if (nonce != _nonces[signatory]++) revert InvalidNonce();
-        if (block.timestamp >= expiry) revert SignatureExpired();
-        return _delegate(signatory, delegatee);
     }
 
     /**

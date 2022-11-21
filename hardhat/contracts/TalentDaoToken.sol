@@ -14,10 +14,10 @@ error PastDeadline();
 error ZeroAddress();
 error OnlyOwner();
 
-/** @title The TALENT token is the token of the Talent DAO
-*   @author jaxcoder
-*   @dev Contract is pretty straightforward ERC20 token contract.
-*/
+/// @title The TALENT token is the token of the Talent DAO
+/// @author jaxcoder
+/// @custom:security-contact jaxcoder75@gmail.com
+/// @dev Contract is pretty straightforward ERC20 token contract.
 contract TalentDaoToken is Ownable, AccessControl, ERC20 {
     using SafeERC20 for IERC20;
 
