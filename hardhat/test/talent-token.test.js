@@ -17,7 +17,7 @@ describe("Talent Token Tests", function () {
       talentContract = await Contract.deploy(
         "0xA4ca1b15fE81F57cb2d3f686c7B13309906cd37B"
       );
-      console.log("veTalentContract", talentContract);
+      console.log("talentContract", talentContract);
     });
   });
 });

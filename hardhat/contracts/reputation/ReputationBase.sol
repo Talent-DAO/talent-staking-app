@@ -84,7 +84,10 @@ abstract contract ReputationBase is AccessControl, Ownable {
         _revokeRole(OPERATOR_ROLE, oldOperator);
     }
 
-    function setupNewDaoRole(address newDao, address oldDao) public isAdminOrOwner {
+    function setupNewDaoRole(address newDao, address oldDao)
+        public
+        isAdminOrOwner
+    {
         _setupRole(DAO_ROLE, newDao);
         _revokeRole(DAO_ROLE, oldDao);
     }
@@ -98,7 +101,7 @@ abstract contract ReputationBase is AccessControl, Ownable {
         revert BadUserId();
     }
 
-    function createNewUser(address userAddress) public {
+    function _createNewUser(address userAddress) public returns (uint) {
         Counters.increment(userIds);
         User storage user = users[Counters.current(userIds)];
 
@@ -106,6 +109,8 @@ abstract contract ReputationBase is AccessControl, Ownable {
         user.userAddress = userAddress;
 
         emit NewUser(userAddress);
+
+        return user.totalScore;
     }
 
     function increaseReputation(address userAddress, uint256 increaseAmt)

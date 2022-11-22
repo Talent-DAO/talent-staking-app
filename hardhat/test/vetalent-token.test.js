@@ -15,9 +15,10 @@ describe("veTalent Token Tests", function () {
     it("Should deploy veTalent Token", async function () {
       const Contract = await ethers.getContractFactory("veTalentToken");
       veTalentContract = await Contract.deploy(
-        "0xA4ca1b15fE81F57cb2d3f686c7B13309906cd37B"
+        "0xA4ca1b15fE81F57cb2d3f686c7B13309906cd37B",
       );
-      console.log("veTalentContract", veTalentContract);
+
+      // console.log("veTalentContract", veTalentContract.address);
     });
   });
 });

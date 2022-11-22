@@ -1,4 +1,4 @@
-const { ethers } = require("hardhat");
+const hre = require("hardhat");
 const { use, expect } = require("chai");
 const { solidity } = require("ethereum-waffle");
 
@@ -14,30 +14,21 @@ describe("TalentDAO Journal of Decentralized Work", function () {
 
   describe("ReputationController", function () {
     it("Should deploy ReputationController", async function () {
-      const Contract = await ethers.getContractFactory("ReputationController");
-      reputationController = await Contract.deploy();
+      const [user] = await ethers.getSigners();
+      const Contract = await hre.ethers.getContractFactory(
+        "ReputationController",
+      );
+      reputationController = await Contract.deploy(user.address);
     });
+  });
 
-    describe("createNewUser()", function () {
-      it("Should create a new user", async function () {
-        const [user] = await ethers.getSigners();
+  describe("createNewUser()", function () {
+    it("Should create a new user", async function () {
+      const [user] = await ethers.getSigners();
 
-        expect(reputationController.createNewUser(user.address))
-          .to.emit(reputationController, "NewUser")
-          .withArgs(user.address);
-      });
-
-      // Uncomment the event and emit lines in YourContract.sol to make this test pass
-
-      /* it("Should emit a SetPurpose event ", async function () {
-        const [owner] = await ethers.getSigners();
-
-        const newPurpose = "Another Test Purpose";
-
-        expect(await myContract.setPurpose(newPurpose)).to.
-          emit(myContract, "SetPurpose").
-            withArgs(owner.address, newPurpose);
-      }); */
+      expect(reputationController.createNewUser(user.address))
+        .to.emit(reputationController, "NewUser")
+        .withArgs(user.address);
     });
   });
 });
