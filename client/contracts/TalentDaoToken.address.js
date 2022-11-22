@@ -1,1 +1,1 @@
-module.exports = "0x05438bE76B19df0C743D1c7bb2Dd6aA855C30dfE";
+module.exports = "0xEE79588a506240e95e25ebABA51389e1e8788058";

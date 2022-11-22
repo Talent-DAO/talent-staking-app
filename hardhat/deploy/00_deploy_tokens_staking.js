@@ -1,6 +1,6 @@
 // deploy/00_deploy_tokens_staking.js
 
-const { ethers, run } = require("hardhat");
+require("@nomiclabs/hardhat-ethers");
 
 const localChainId = "31337";
 
