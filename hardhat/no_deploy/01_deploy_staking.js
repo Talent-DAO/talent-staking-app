@@ -17,19 +17,26 @@ module.exports = async ({ getNamedAccounts, deployments, getChainId }) => {
   const { deployer } = await getNamedAccounts();
   const chainId = await getChainId();
 
+  const TalentToken = await ethers.getContractFactory("TalentToken");
+  const veTalentToken = await ethers.getContractFactory("veTalentToken");
+
   await deploy("TalentStaking", {
     from: deployer,
-    args: ["0x3f15B8c6F9939879Cb030D6dd935348E57109637"],
+    constructorArguments: [
+      35948024, // polygon current block
+      45948024, // polygon current block + 10000000
+      TalentToken.address,
+      veTalentToken.address,
+      "0x3f15B8c6F9939879Cb030D6dd935348E57109637",
+    ],
     log: true,
   });
 
   // Getting a previously deployed contract
   const TalentStakingContract = await ethers.getContract(
     "TalentStaking",
-    deployer
+    deployer,
   );
-
-  // Verify from the command line by running `yarn verify`
 
   // You can also Verify your contracts with Etherscan here...
   // You don't want to verify on localhost
@@ -38,11 +45,18 @@ module.exports = async ({ getNamedAccounts, deployments, getChainId }) => {
       await run("verify:verify", {
         address: TalentStakingContract.address,
         contract: "contracts/TalentStaking.sol:TalentStaking",
-        constructorArguments: ["0x3f15B8c6F9939879Cb030D6dd935348E57109637"],
+        constructorArguments: [
+          35948024, // polygon current block
+          45948024, // polygon current block + 10000000
+          TalentToken.address,
+          veTalentToken.address,
+          "0x3f15B8c6F9939879Cb030D6dd935348E57109637",
+        ],
       });
     }
   } catch (error) {
     console.error(error);
   }
 };
+
 module.exports.tags = ["TalentStaking"];

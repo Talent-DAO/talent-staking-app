@@ -117,7 +117,8 @@ contract TalentStaking is AccessControl, TokenRecover {
         uint256 _startBlock,
         uint256 _bonusEndBlock,
         address _talentToken,
-        address _veTalentToken
+        address _veTalentToken,
+        address _owner
     )
     {
         startBlock = _startBlock;
@@ -132,7 +133,7 @@ contract TalentStaking is AccessControl, TokenRecover {
 
         _setupRole(OPERATOR_ROLE, msg.sender);
         _setupRole(DAO_ROLE, msg.sender);
-        // transferOwnership(0x3f15B8c6F9939879Cb030D6dd935348E57109637);
+        transferOwnership(_owner);
     }
 
     /// @dev updates the Talent per block emission rate

@@ -18,7 +18,7 @@ error OnlyOwner();
 /// @author jaxcoder
 /// @custom:security-contact jaxcoder75@gmail.com
 /// @dev Contract is pretty straightforward ERC20 token contract.
-contract TalentDaoToken is Ownable, AccessControl, ERC20 {
+contract TalentToken is Ownable, AccessControl, ERC20 {
     using SafeERC20 for IERC20;
 
     mapping(address => uint96) internal _balances;
